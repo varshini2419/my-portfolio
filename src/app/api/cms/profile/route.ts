@@ -1,0 +1,29 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getProfileMongo, saveProfileMongo } from '@/lib/mongodb/services/mongoDataService';
+import { verifyAdminMutation } from '@/lib/auth/serverAuth';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET() {
+  try {
+    const profile = await getProfileMongo();
+    return NextResponse.json({ success: true, data: profile });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: 'Failed to fetch profile' }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const auth = await verifyAdminMutation(request);
+  if (!auth.authorized) {
+    return NextResponse.json({ success: false, error: auth.reason }, { status: 403 });
+  }
+
+  try {
+    const body = await request.json();
+    const result = await saveProfileMongo(body);
+    return NextResponse.json(result);
+  } catch (error) {
+    return NextResponse.json({ success: false, error: 'Failed to save profile' }, { status: 500 });
+  }
+}

@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Primary Design Tokens */
+    --color-primary: #112D4E;
+    --color-secondary: #3F72AF;
+    --color-bg-light: #DBE2EF;
+    --color-bg-white: #F9F7F7;
+    --color-bg-beige: #F9F7F7;
+
+    /* Supporting Tokens */
+    --color-text-main: #112D4E;
+    --color-text-secondary: #4B5E76;
+    --color-surface: #FFFFFF;
+    --color-border: #DBE2EF;
+    --color-hover: #112D4E;
+
+    /* Semantic Theme Aliases */
+    --bg-page: #F9F7F7;
+    --bg-card: #FFFFFF;
+    --text-primary: #112D4E;
+    --text-secondary: #4B5E76;
+    --text-muted: #64748B;
+    --border-subtle: #DBE2EF;
+    --border-light: #DBE2EF;
+    --accent-blue: #3F72AF;
+    --accent-soft: #DBE2EF;
+  }
+
+  html,
+  body {
+    background-color: #F9F7F7;
+    color: #112D4E;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Custom focus outline for accessibility using Secondary Blue */
+  *:focus-visible {
+    outline: 2px solid #3F72AF;
+    outline-offset: 2px;
+  }
+
+  /* Selection highlight using Light Blue & Primary Navy text */
+  ::selection {
+    background-color: #DBE2EF;
+    color: #112D4E;
+  }
+}
+
+@layer utilities {
+  .bg-warm-canvas {
+    background-color: #F9F7F7;
+  }
+
+  .glass-header {
+    background: rgba(17, 45, 78, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Restrained smooth transitions */
+a, button {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
