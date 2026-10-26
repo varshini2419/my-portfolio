@@ -15,7 +15,10 @@ import {
   Target,
   Sparkles,
   FileSpreadsheet,
-  Film
+  Film,
+  Linkedin,
+  Instagram,
+  Play
 } from 'lucide-react';
 import { Header } from '@/components/public/Header';
 import { Footer } from '@/components/public/Footer';
@@ -26,6 +29,7 @@ import {
   getPublishedProjects,
   getProjectBySlug,
   getRelatedProjects,
+  parseVideoUrl,
   formatVideoEmbedUrl,
   isValidExternalUrl
 } from '@/lib/services/portfolioService';
@@ -315,32 +319,64 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                 {project.demo_videos && project.demo_videos.length > 0 ? (
                   <div className="space-y-6">
                     {project.demo_videos.map((vid, idx) => {
-                      const embedUrl = formatVideoEmbedUrl(vid.url);
-                      const isDirectVideo = Boolean(
-                        vid.url && (
-                          /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(vid.url) ||
-                          vid.url.includes('/api/uploads/') ||
-                          vid.url.includes('/uploads/') ||
-                          vid.url.startsWith('data:video/')
-                        )
-                      );
+                      const videoInfo = parseVideoUrl(vid.url);
+                      const isDirect = videoInfo.type === 'direct';
+                      const isLinkedIn = videoInfo.type === 'linkedin';
+                      const isInstagram = videoInfo.type === 'instagram';
+                      const isYouTube = videoInfo.type === 'youtube';
+
                       return (
-                        <Card key={idx} padding="none" className="overflow-hidden border-slate-200">
-                          <div className="p-4 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between">
-                            <span className="text-sm font-bold text-slate-800">
-                              Video {idx + 1}: {vid.title}
-                            </span>
-                            {vid.duration && (
-                              <span className="text-xs text-slate-500 font-medium">
-                                Duration: {vid.duration}
+                        <Card key={idx} padding="none" className="overflow-hidden border-slate-200 shadow-subtle">
+                          {/* Header Bar */}
+                          <div className="p-4 bg-slate-50/90 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              {isLinkedIn ? (
+                                <Badge variant="blue" size="sm" className="bg-[#0A66C2]/10 text-[#0A66C2] border-[#0A66C2]/20 font-bold flex items-center gap-1">
+                                  <Linkedin className="w-3 h-3" /> LinkedIn Video
+                                </Badge>
+                              ) : isInstagram ? (
+                                <Badge variant="rose" size="sm" className="bg-gradient-to-r from-pink-500/10 to-purple-500/10 text-pink-700 border-pink-200 font-bold flex items-center gap-1">
+                                  <Instagram className="w-3 h-3" /> Instagram Reel
+                                </Badge>
+                              ) : isYouTube ? (
+                                <Badge variant="rose" size="sm" className="bg-red-50 text-red-700 border-red-200 font-bold flex items-center gap-1">
+                                  <Play className="w-3 h-3 fill-current" /> YouTube
+                                </Badge>
+                              ) : (
+                                <Badge variant="slate" size="sm">
+                                  {videoInfo.platformLabel}
+                                </Badge>
+                              )}
+                              <span className="text-sm font-bold text-slate-800">
+                                Video {idx + 1}: {vid.title}
                               </span>
-                            )}
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              {vid.duration && (
+                                <span className="text-xs text-slate-500 font-medium">
+                                  Duration: {vid.duration}
+                                </span>
+                              )}
+                              {videoInfo.externalUrl && (
+                                <a
+                                  href={videoInfo.externalUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#3F72AF] hover:text-[#112D4E] transition-colors"
+                                >
+                                  <span>Watch on {isLinkedIn ? 'LinkedIn' : isInstagram ? 'Instagram' : isYouTube ? 'YouTube' : 'Source'}</span>
+                                  <ExternalLink className="w-3 h-3" />
+                                </a>
+                              )}
+                            </div>
                           </div>
 
-                          <div className="relative w-full aspect-video bg-black flex items-center justify-center">
-                            {isDirectVideo ? (
+                          {/* Video Player Canvas */}
+                          {isDirect ? (
+                            <div className="relative w-full aspect-video bg-black flex items-center justify-center">
                               <video
-                                src={vid.url}
+                                src={videoInfo.embedUrl}
                                 controls
                                 playsInline
                                 preload="metadata"
@@ -349,26 +385,107 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                               >
                                 Your browser does not support the video tag.
                               </video>
-                            ) : embedUrl ? (
+                            </div>
+                          ) : isLinkedIn ? (
+                            videoInfo.canEmbed ? (
+                              <div className="p-3 sm:p-6 bg-slate-50 flex flex-col items-center justify-center">
+                                <div className="w-full max-w-2xl bg-white rounded-2xl shadow-subtle border border-slate-200/90 overflow-hidden flex flex-col">
+                                  <iframe
+                                    src={videoInfo.embedUrl}
+                                    title={vid.title}
+                                    className="w-full min-h-[520px] sm:min-h-[560px] border-0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                  />
+                                  <div className="p-3 bg-slate-50/90 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                                    <span className="flex items-center gap-1.5 font-medium text-slate-600">
+                                      <Linkedin className="w-3.5 h-3.5 text-[#0A66C2]" />
+                                      LinkedIn Interactive Case Study Walkthrough
+                                    </span>
+                                    <a
+                                      href={videoInfo.externalUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="font-bold text-[#0A66C2] hover:underline flex items-center gap-1"
+                                    >
+                                      Open on LinkedIn <ExternalLink className="w-3 h-3" />
+                                    </a>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="p-6 sm:p-8 bg-gradient-to-br from-[#112D4E] to-[#1B3B6F] text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                                <div className="space-y-2 max-w-lg">
+                                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-[#DBE2EF] border border-white/15">
+                                    <Linkedin className="w-3.5 h-3.5 text-blue-300" />
+                                    LinkedIn Video Walkthrough
+                                  </div>
+                                  <h4 className="text-base sm:text-lg font-bold text-white leading-snug">
+                                    {vid.title}
+                                  </h4>
+                                  <p className="text-xs sm:text-sm text-[#DBE2EF] leading-relaxed">
+                                    Watch Maddala Varshini’s comprehensive demonstration video, key metric highlights, and live technical discussion directly on LinkedIn.
+                                  </p>
+                                </div>
+                                <a
+                                  href={videoInfo.externalUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm bg-white text-[#112D4E] hover:bg-slate-100 transition-colors shadow-card shrink-0"
+                                >
+                                  <Linkedin className="w-4 h-4 text-[#0A66C2]" />
+                                  <span>Watch on LinkedIn</span>
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                </a>
+                              </div>
+                            )
+                          ) : isInstagram ? (
+                            <div className="p-4 sm:p-6 bg-slate-50 flex flex-col items-center justify-center">
+                              <div className="w-full max-w-md bg-white rounded-2xl shadow-subtle border border-slate-200/90 overflow-hidden flex flex-col">
+                                <iframe
+                                  src={videoInfo.embedUrl}
+                                  title={vid.title}
+                                  className="w-full min-h-[540px] border-0"
+                                  allowFullScreen
+                                  scrolling="no"
+                                />
+                                <div className="p-3 bg-slate-50/90 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                                  <span className="flex items-center gap-1.5 font-medium text-slate-600">
+                                    <Instagram className="w-3.5 h-3.5 text-pink-600" />
+                                    Instagram Demonstration Reel
+                                  </span>
+                                  <a
+                                    href={videoInfo.externalUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="font-bold text-pink-700 hover:underline flex items-center gap-1"
+                                  >
+                                    Open on Instagram <ExternalLink className="w-3 h-3" />
+                                  </a>
+                                </div>
+                              </div>
+                            </div>
+                          ) : videoInfo.embedUrl ? (
+                            <div className="relative w-full aspect-video bg-black flex items-center justify-center">
                               <iframe
-                                src={embedUrl}
+                                src={videoInfo.embedUrl}
                                 title={vid.title}
                                 className="w-full h-full border-0"
-                                allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowFullScreen
                               />
-                            ) : (
-                              <div className="text-center p-8 text-slate-400 space-y-2">
-                                <Film className="w-10 h-10 mx-auto opacity-70 text-brand-400" />
-                                <h4 className="text-sm font-semibold text-white">
-                                  {vid.title} (Upload Pending)
-                                </h4>
-                                <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                                  Demonstration recording prepared for YouTube / direct embed via Admin Console.
-                                </p>
-                              </div>
-                            )}
-                          </div>
+                            </div>
+                          ) : (
+                            <div className="text-center p-8 text-slate-400 space-y-2 bg-slate-900">
+                              <Film className="w-10 h-10 mx-auto opacity-70 text-brand-400" />
+                              <h4 className="text-sm font-semibold text-white">
+                                {vid.title} (Upload Pending)
+                              </h4>
+                              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                                Demonstration recording configured via Admin Console.
+                              </p>
+                            </div>
+                          )}
                         </Card>
                       );
                     })}

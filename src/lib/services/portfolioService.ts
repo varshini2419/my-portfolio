@@ -29,26 +29,189 @@ import {
   getCmsSiteSettings
 } from '@/lib/services/cmsService';
 
+export interface VideoInfo {
+  type: 'direct' | 'youtube' | 'linkedin' | 'instagram' | 'vimeo' | 'loom' | 'googledrive' | 'iframe' | 'unsupported';
+  embedUrl: string;
+  externalUrl: string;
+  canEmbed: boolean;
+  platformLabel: string;
+}
+
 /**
- * Utility to extract clean YouTube embed URL without autoplay
+ * Robust video URL parser supporting YouTube, LinkedIn, Instagram Reels,
+ * Loom, Vimeo, Google Drive, and direct uploaded video files.
  */
-export function formatVideoEmbedUrl(url?: string): string {
-  if (!url) return '';
+export function parseVideoUrl(url?: string): VideoInfo {
+  if (!url || !url.trim()) {
+    return {
+      type: 'unsupported',
+      embedUrl: '',
+      externalUrl: '',
+      canEmbed: false,
+      platformLabel: 'Video',
+    };
+  }
+
   const trimmed = url.trim();
 
-  // If already an embed URL, ensure autoplay=0
-  if (trimmed.includes('youtube.com/embed/')) {
-    const separator = trimmed.includes('?') ? '&' : '?';
-    return trimmed.includes('autoplay') ? trimmed : `${trimmed}${separator}autoplay=0`;
+  // 1. Direct Video files (uploaded or static mp4/webm/mov/ogg)
+  if (
+    /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(trimmed) ||
+    trimmed.includes('/api/uploads/') ||
+    trimmed.includes('/uploads/') ||
+    trimmed.startsWith('data:video/')
+  ) {
+    return {
+      type: 'direct',
+      embedUrl: trimmed,
+      externalUrl: trimmed,
+      canEmbed: true,
+      platformLabel: 'Direct Video File',
+    };
   }
 
-  // Handle standard watch URL: https://www.youtube.com/watch?v=VIDEO_ID
-  const watchMatch = trimmed.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
-  if (watchMatch && watchMatch[1]) {
-    return `https://www.youtube.com/embed/${watchMatch[1]}?autoplay=0&rel=0`;
+  // 2. YouTube (standard watch, youtu.be, embed, shorts)
+  if (trimmed.includes('youtube.com') || trimmed.includes('youtu.be')) {
+    const watchMatch = trimmed.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+    const videoId = watchMatch?.[1];
+    return {
+      type: 'youtube',
+      embedUrl: videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=0&rel=0` : trimmed,
+      externalUrl: trimmed,
+      canEmbed: Boolean(videoId),
+      platformLabel: 'YouTube',
+    };
   }
 
-  return trimmed;
+  // 3. Instagram Reels & Posts
+  if (trimmed.includes('instagram.com')) {
+    const instaMatch = trimmed.match(/instagram\.com\/(?:p|reel|reels|tv)\/([a-zA-Z0-9_-]+)/);
+    const instaId = instaMatch?.[1];
+    const isReel = trimmed.includes('/reel') || trimmed.includes('/reels');
+    const cleanEmbed = instaId ? `https://www.instagram.com/${isReel ? 'reel' : 'p'}/${instaId}/embed` : trimmed;
+    return {
+      type: 'instagram',
+      embedUrl: cleanEmbed,
+      externalUrl: trimmed,
+      canEmbed: Boolean(instaId),
+      platformLabel: isReel ? 'Instagram Reel' : 'Instagram Video',
+    };
+  }
+
+  // 4. LinkedIn Posts & Videos (including shortened lnkd.in links)
+  if (trimmed.includes('linkedin.com') || trimmed.includes('lnkd.in')) {
+    if (trimmed.includes('linkedin.com/embed/')) {
+      return {
+        type: 'linkedin',
+        embedUrl: trimmed,
+        externalUrl: trimmed,
+        canEmbed: true,
+        platformLabel: 'LinkedIn Video',
+      };
+    }
+
+    // Direct or URL-encoded URN (e.g. highlightedUpdateUrn=urn%3Ali%3Aactivity%3A... or urn:li:activity:...)
+    const decodedUrl = decodeURIComponent(trimmed);
+    const urnMatch = decodedUrl.match(/urn:li:(activity|ugcPost|share):([0-9]+)/i);
+    if (urnMatch) {
+      return {
+        type: 'linkedin',
+        embedUrl: `https://www.linkedin.com/embed/feed/update/urn:li:${urnMatch[1].toLowerCase() === 'ugcpost' ? 'ugcPost' : urnMatch[1]}:${urnMatch[2]}`,
+        externalUrl: trimmed,
+        canEmbed: true,
+        platformLabel: 'LinkedIn Video',
+      };
+    }
+
+    // Slug with activity-{id}
+    const activityMatch = trimmed.match(/activity-([0-9]+)/i);
+    if (activityMatch) {
+      return {
+        type: 'linkedin',
+        embedUrl: `https://www.linkedin.com/embed/feed/update/urn:li:activity:${activityMatch[1]}`,
+        externalUrl: trimmed,
+        canEmbed: true,
+        platformLabel: 'LinkedIn Video',
+      };
+    }
+
+    // Slug with ugcPost-{id}
+    const ugcMatch = trimmed.match(/ugcPost-([0-9]+)/i);
+    if (ugcMatch) {
+      return {
+        type: 'linkedin',
+        embedUrl: `https://www.linkedin.com/embed/feed/update/urn:li:ugcPost:${ugcMatch[1]}`,
+        externalUrl: trimmed,
+        canEmbed: true,
+        platformLabel: 'LinkedIn Video',
+      };
+    }
+
+    // Shortened lnkd.in or generic LinkedIn post without extractable ID:
+    // Do NOT embed in iframe (which causes browser sad-document error). Render branded fallback card instead.
+    return {
+      type: 'linkedin',
+      embedUrl: '',
+      externalUrl: trimmed,
+      canEmbed: false,
+      platformLabel: 'LinkedIn Video',
+    };
+  }
+
+  // 5. Loom
+  if (trimmed.includes('loom.com')) {
+    const loomMatch = trimmed.match(/loom\.com\/(?:share|embed)\/([a-zA-Z0-9]+)/);
+    const loomId = loomMatch?.[1];
+    return {
+      type: 'loom',
+      embedUrl: loomId ? `https://www.loom.com/embed/${loomId}` : trimmed,
+      externalUrl: trimmed,
+      canEmbed: Boolean(loomId),
+      platformLabel: 'Loom',
+    };
+  }
+
+  // 6. Vimeo
+  if (trimmed.includes('vimeo.com')) {
+    const vimeoMatch = trimmed.match(/vimeo\.com\/(?:video\/)?([0-9]+)/);
+    const vimeoId = vimeoMatch?.[1];
+    return {
+      type: 'vimeo',
+      embedUrl: vimeoId ? `https://player.vimeo.com/video/${vimeoId}` : trimmed,
+      externalUrl: trimmed,
+      canEmbed: Boolean(vimeoId),
+      platformLabel: 'Vimeo',
+    };
+  }
+
+  // 7. Google Drive
+  if (trimmed.includes('drive.google.com')) {
+    const driveMatch = trimmed.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+    const fileId = driveMatch?.[1];
+    return {
+      type: 'googledrive',
+      embedUrl: fileId ? `https://drive.google.com/file/d/${fileId}/preview` : trimmed,
+      externalUrl: trimmed,
+      canEmbed: Boolean(fileId),
+      platformLabel: 'Google Drive',
+    };
+  }
+
+  return {
+    type: 'iframe',
+    embedUrl: trimmed,
+    externalUrl: trimmed,
+    canEmbed: true,
+    platformLabel: 'Video',
+  };
+}
+
+/**
+ * Utility to extract clean video embed URL
+ */
+export function formatVideoEmbedUrl(url?: string): string {
+  const info = parseVideoUrl(url);
+  return info.embedUrl;
 }
 
 /**

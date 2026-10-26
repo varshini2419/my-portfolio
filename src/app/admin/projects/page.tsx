@@ -27,7 +27,9 @@ import {
   MinusCircle,
   HelpCircle,
   UploadCloud,
-  Loader2
+  Loader2,
+  Linkedin,
+  Instagram
 } from 'lucide-react';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { Card } from '@/components/ui/Card';
@@ -42,6 +44,7 @@ import {
   toggleCmsProjectStatus,
   uploadCmsFile
 } from '@/lib/services/cmsService';
+import { parseVideoUrl } from '@/lib/services/portfolioService';
 
 const PROJECT_CATEGORIES = [
   'Data Analytics',
@@ -860,10 +863,10 @@ export default function AdminProjectsPage() {
                         <div>
                           <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                             <Video className="w-4 h-4 text-brand-600" />
-                            Dual Video Demonstrations (Prompt 3 requirement)
+                            Dual Video Demonstrations (YouTube, LinkedIn, Instagram, or Video Upload)
                           </h4>
                           <span className="text-[11px] text-slate-500">
-                            Support up to 2 video demos per project (e.g. Executive Power BI Tour + SQL Technical Walkthrough).
+                            Support up to 2 video demos per project with seamless LinkedIn posts, Instagram Reels, YouTube embeds, and direct video file uploads.
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -965,7 +968,23 @@ export default function AdminProjectsPage() {
                                   updated[idx] = { ...updated[idx], url: e.target.value };
                                   setEditingProject({ ...editingProject, demo_videos: updated });
                                 }}
-                                placeholder="YouTube embed or upload video file..."
+                                onBlur={async (e) => {
+                                  const trimmedUrl = e.target.value.trim();
+                                  if (trimmedUrl && (trimmedUrl.includes('lnkd.in') || trimmedUrl.includes('bit.ly') || trimmedUrl.includes('t.co'))) {
+                                    try {
+                                      const res = await fetch(`/api/cms/resolve-video-link?url=${encodeURIComponent(trimmedUrl)}`);
+                                      const data = await res.json();
+                                      if (data.success && data.resolvedUrl && data.resolvedUrl !== trimmedUrl) {
+                                        const updated = [...(editingProject.demo_videos || [])];
+                                        updated[idx] = { ...updated[idx], url: data.resolvedUrl };
+                                        setEditingProject({ ...editingProject, demo_videos: updated });
+                                      }
+                                    } catch {
+                                      // Non-blocking
+                                    }
+                                  }
+                                }}
+                                placeholder="Paste YouTube, LinkedIn, Instagram, or upload video..."
                                 className="flex-grow px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 font-mono text-slate-700"
                               />
                               <label className="p-1.5 text-slate-500 hover:text-brand-600 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors shrink-0 flex items-center gap-1 text-xs border border-slate-200 bg-white" title="Upload Video File">
@@ -995,17 +1014,36 @@ export default function AdminProjectsPage() {
                               </label>
                             </div>
                           </div>
-                          {vid.url && (
-                            <div className="text-[11px] text-slate-500 flex items-center gap-2 pt-0.5">
-                              <span className="font-semibold text-slate-600">Video source:</span>
-                              <span className="font-mono truncate max-w-sm">{vid.url}</span>
-                              {(vid.url.includes('/api/uploads/') || vid.url.includes('/uploads/')) && (
-                                <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                  Uploaded Video File
-                                </span>
-                              )}
-                            </div>
-                          )}
+                          {vid.url && (() => {
+                            const vInfo = parseVideoUrl(vid.url);
+                            return (
+                              <div className="text-[11px] text-slate-500 flex flex-wrap items-center gap-2 pt-0.5">
+                                <span className="font-semibold text-slate-600">Video source:</span>
+                                <span className="font-mono truncate max-w-xs">{vid.url}</span>
+                                {vInfo.type === 'linkedin' ? (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#0A66C2]/10 text-[#0A66C2] border border-[#0A66C2]/20 flex items-center gap-1">
+                                    <Linkedin className="w-3 h-3" /> LinkedIn {vInfo.canEmbed ? 'Embed' : 'External Link'}
+                                  </span>
+                                ) : vInfo.type === 'instagram' ? (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-pink-50 text-pink-700 border border-pink-200 flex items-center gap-1">
+                                    <Instagram className="w-3 h-3" /> Instagram Reel
+                                  </span>
+                                ) : vInfo.type === 'youtube' ? (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-700 border border-red-200">
+                                    YouTube
+                                  </span>
+                                ) : vInfo.type === 'direct' ? (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    Uploaded Video File
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                    {vInfo.platformLabel}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                       ))}
                     </div>

@@ -126,6 +126,30 @@ export async function saveProjectMongo(project: Partial<Project>): Promise<{ suc
       };
     }
 
+    const processedDemoVideos = await Promise.all(
+      (project.demo_videos || []).map(async (v) => {
+        let url = (v.url || '').trim();
+        if (url && (url.includes('lnkd.in') || url.includes('bit.ly') || url.includes('t.co'))) {
+          try {
+            const resp = await fetch(url, {
+              method: 'HEAD',
+              redirect: 'manual',
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              },
+            });
+            const loc = resp.headers.get('location');
+            if (loc) {
+              url = new URL(loc, url).href;
+            }
+          } catch {
+            // Keep original if unreachable
+          }
+        }
+        return { ...v, url };
+      })
+    );
+
     const recordToSave: Project = {
       id,
       slug,
@@ -143,7 +167,7 @@ export async function saveProjectMongo(project: Partial<Project>): Promise<{ suc
       thumbnail_url: project.thumbnail_url || '',
       github_url: project.github_url || '',
       live_demo_url: project.live_demo_url || '',
-      demo_videos: project.demo_videos || [],
+      demo_videos: processedDemoVideos,
       tags: project.tags || [],
       category: project.category || 'Data Analytics',
       featured: Boolean(project.featured),
