@@ -866,31 +866,67 @@ export default function AdminProjectsPage() {
                             Support up to 2 video demos per project (e.g. Executive Power BI Tour + SQL Technical Walkthrough).
                           </span>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          icon={<Plus className="w-3.5 h-3.5" />}
-                          onClick={() => {
-                            const videos = editingProject.demo_videos || [];
-                            if (videos.length >= 2) {
-                              alert('Dual video demos maximum reached (2 videos).');
-                              return;
-                            }
-                            setEditingProject({
-                              ...editingProject,
-                              demo_videos: [
-                                ...videos,
-                                {
-                                  title: videos.length === 0 ? 'Executive Dashboard Walkthrough' : 'SQL Technical Deep Dive',
-                                  url: '',
-                                  source: 'youtube'
+                        <div className="flex items-center gap-2">
+                          <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-brand-50 text-brand-700 hover:bg-brand-100 border border-brand-200 cursor-pointer transition-colors shadow-2xs">
+                            <UploadCloud className="w-3.5 h-3.5" />
+                            <span>Upload Video</span>
+                            <input
+                              type="file"
+                              accept="video/*,.mp4,.webm,.ogg,.mov"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const videos = editingProject.demo_videos || [];
+                                if (videos.length >= 2) {
+                                  alert('Dual video demos maximum reached (2 videos).');
+                                  return;
                                 }
-                              ]
-                            });
-                          }}
-                        >
-                          Add Video
-                        </Button>
+                                const res = await uploadCmsFile(file);
+                                if (res.success && res.url) {
+                                  setEditingProject({
+                                    ...editingProject,
+                                    demo_videos: [
+                                      ...videos,
+                                      {
+                                        title: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ') || 'Demonstration Video',
+                                        url: res.url,
+                                        source: 'direct'
+                                      }
+                                    ]
+                                  });
+                                } else {
+                                  alert(res.error || 'Failed to upload video');
+                                }
+                              }}
+                            />
+                          </label>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            icon={<Plus className="w-3.5 h-3.5" />}
+                            onClick={() => {
+                              const videos = editingProject.demo_videos || [];
+                              if (videos.length >= 2) {
+                                alert('Dual video demos maximum reached (2 videos).');
+                                return;
+                              }
+                              setEditingProject({
+                                ...editingProject,
+                                demo_videos: [
+                                  ...videos,
+                                  {
+                                    title: videos.length === 0 ? 'Executive Dashboard Walkthrough' : 'SQL Technical Deep Dive',
+                                    url: '',
+                                    source: 'youtube'
+                                  }
+                                ]
+                              });
+                            }}
+                          >
+                            Add Video URL
+                          </Button>
+                        </div>
                       </div>
 
                       {editingProject.demo_videos?.map((vid, idx) => (
@@ -908,7 +944,7 @@ export default function AdminProjectsPage() {
                               <MinusCircle className="w-3.5 h-3.5" /> Remove
                             </button>
                           </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
                             <input
                               type="text"
                               value={vid.title}
@@ -918,20 +954,58 @@ export default function AdminProjectsPage() {
                                 setEditingProject({ ...editingProject, demo_videos: updated });
                               }}
                               placeholder="Video Title (e.g. Dashboard Demo)"
-                              className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+                              className="sm:col-span-5 px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium"
                             />
-                            <input
-                              type="url"
-                              value={vid.url}
-                              onChange={(e) => {
-                                const updated = [...(editingProject.demo_videos || [])];
-                                updated[idx] = { ...updated[idx], url: e.target.value };
-                                setEditingProject({ ...editingProject, demo_videos: updated });
-                              }}
-                              placeholder="YouTube or Video URL"
-                              className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 sm:col-span-2"
-                            />
+                            <div className="sm:col-span-7 flex items-center gap-1.5">
+                              <input
+                                type="text"
+                                value={vid.url}
+                                onChange={(e) => {
+                                  const updated = [...(editingProject.demo_videos || [])];
+                                  updated[idx] = { ...updated[idx], url: e.target.value };
+                                  setEditingProject({ ...editingProject, demo_videos: updated });
+                                }}
+                                placeholder="YouTube embed or upload video file..."
+                                className="flex-grow px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 font-mono text-slate-700"
+                              />
+                              <label className="p-1.5 text-slate-500 hover:text-brand-600 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors shrink-0 flex items-center gap-1 text-xs border border-slate-200 bg-white" title="Upload Video File">
+                                <UploadCloud className="w-4 h-4 text-brand-600" />
+                                <span className="hidden sm:inline font-medium text-[11px]">Upload</span>
+                                <input
+                                  type="file"
+                                  accept="video/*,.mp4,.webm,.ogg,.mov"
+                                  className="hidden"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    const res = await uploadCmsFile(file);
+                                    if (res.success && res.url) {
+                                      const updated = [...(editingProject.demo_videos || [])];
+                                      updated[idx] = {
+                                        ...updated[idx],
+                                        url: res.url,
+                                        title: updated[idx].title || file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ')
+                                      };
+                                      setEditingProject({ ...editingProject, demo_videos: updated });
+                                    } else {
+                                      alert(res.error || 'Failed to upload video');
+                                    }
+                                  }}
+                                />
+                              </label>
+                            </div>
                           </div>
+                          {vid.url && (
+                            <div className="text-[11px] text-slate-500 flex items-center gap-2 pt-0.5">
+                              <span className="font-semibold text-slate-600">Video source:</span>
+                              <span className="font-mono truncate max-w-sm">{vid.url}</span>
+                              {(vid.url.includes('/api/uploads/') || vid.url.includes('/uploads/')) && (
+                                <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  Uploaded Video File
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

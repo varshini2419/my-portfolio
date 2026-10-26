@@ -316,6 +316,14 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                   <div className="space-y-6">
                     {project.demo_videos.map((vid, idx) => {
                       const embedUrl = formatVideoEmbedUrl(vid.url);
+                      const isDirectVideo = Boolean(
+                        vid.url && (
+                          /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(vid.url) ||
+                          vid.url.includes('/api/uploads/') ||
+                          vid.url.includes('/uploads/') ||
+                          vid.url.startsWith('data:video/')
+                        )
+                      );
                       return (
                         <Card key={idx} padding="none" className="overflow-hidden border-slate-200">
                           <div className="p-4 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between">
@@ -330,7 +338,18 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                           </div>
 
                           <div className="relative w-full aspect-video bg-black flex items-center justify-center">
-                            {embedUrl ? (
+                            {isDirectVideo ? (
+                              <video
+                                src={vid.url}
+                                controls
+                                playsInline
+                                preload="metadata"
+                                className="w-full h-full object-contain bg-black"
+                                title={vid.title}
+                              >
+                                Your browser does not support the video tag.
+                              </video>
+                            ) : embedUrl ? (
                               <iframe
                                 src={embedUrl}
                                 title={vid.title}
